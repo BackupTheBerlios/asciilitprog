@@ -1,0 +1,534 @@
+AsciiLitProg : A Literate Programming Tool
+==========================================
+Ed Keith <edk@users.berlios.de>
+v1.0.0, Dec 2009
+////////////////////////////////////////////////////
+Version control info.
+$checked in by:$
+$Id:$
+$Source:$
+////////////////////////////////////////////////////
+
+Motivation
+----------
+
+There are many literate programming tools, why write another? Because IMHO 
+none of the existing tools, except for eWeb (http://eweb.sourceforge.net/), 
+use a mark up language as powerful and flexible and most importantly, 
+readable as AcsiiDoc (http://www.methods.co.nz/asciidoc/). I had done quite 
+a bit of work on AsciiLitProg before I heard of eWeb. After looking at eWeb 
+I determined that it did not have the power and flexibility I wanted, so I 
+continued working on AsciiLitProg.
+
+Design Requirements
+-------------------
+
+AsciiLitProg is designed to be extremely flexible and powerful.
+
+The document is written in pure AsciiDoc, so there is no need for any 
+additional program to pre-process the documentation. It might be desirable at 
+some point to configure the Source Code Highlight Filter to handle chunks.
+
+AsciiLitProg is designed to work with any programming language. The chunk 
+tags are delimited with a set of four angle braces. Four angle brackets were 
+chosen because it was thought to be unlikely that this would ever appear in 
+source code.
+
+----------------------------------------------------------------
+<<<<define tag marker patterns>>>>=
+tag_start_pattern = '<{4}'
+tag_end_pattern = '>{4}'
+----------------------------------------------------------------
+
+Chunks can only be defined inside code blocks or special filter blocks. But 
+multiple chunks can be defined in a single block. At this time the definition 
+of a chunk must appear at the beginning of a line. The closing angle bracket 
+can have only one optional plus sign between it and a equal sign. At 
+this time if two chunks with the same name are defined the second will 
+overwrite the first unless a plus sign preceding the equals sign 
+then the new definition is appended to the end of the existing definition. 
+
+A chunk with a name that starts and ends with an asterisk represents a
+source code file, the chunk will be expanded into a file whose name appears 
+between the asterisks. If the name is blank it will be expanded to the 
+standard output.
+
+The definition of a chunk ends at the end of the containing block or when a 
+new chunk is defined. Any blank lines at the end of a chunk definition are 
+ignored.
+
+Chunks can be referenced anywhere inside the definition of a chunk. When a 
+chunk is expanded the first non blank line of the chunk is inserted at 
+starting at the start of the referencing tag. Additional lines are prepended
+with a new line and the same amount of white space as precedes the tag 
+referencing the chunk. Nothing is appended after the last line. All tabs are 
+expanded to spaces.
+
+Implementation
+--------------
+
+AsciiLitProg is implemented in Python, just like AsciiDoc. It is structured 
+like most python programs.
+
+-------------------------------------------
+<<<<*asciilitprog.py*>>>>=
+#!/usr/bin/env python
+"""
+Literate programming tool for use with AsciiDoc.
+
+
+Copyright (C) 2009 Ed Keith
+
+Free use of this software is granted under the terms of the 
+GNU General Public License (GPL).
+"""
+__version__ 	= "1.0.0a1"
+__author__ 	= "Ed Keith"
+__copyright__ 	= "Copyright 2009, Ed Keith"
+__license__ 	= "GPL"
+__email__ 	= "edk@users.berlios.de"
+__status__ 	= "Alpha"
+__date__ 	= "16 December 2009"
+
+<<<<imports>>>>
+
+<<<<support functions>>>>
+<<<<define tag marker patterns>>>>
+
+<<<<do real work>>>>
+
+<<<<main function>>>>
+
+if __name__ == "__main__":
+    main()
+------------------------------------------
+
+
+The Real Work
+~~~~~~~~~~~~~
+
+The real work is done in two phases:
+
+    . Collecting the chunks 
+
+    . Assembling the files.
+
+-------------------------------------------
+<<<<do real work>>>>=
+<<<<collect all the chunks from the document>>>>
+<<<<assemble the output files>>>>
+-------------------------------------------------------
+
+Collect The Chunks
+^^^^^^^^^^^^^^^^^^
+
+First all the chunks are collected from the document.
+
+The first thing that most be done is to find the start of a block that is 
+allowed to contain chunk definitions. By default a line consisting only of 
+four or more dashes delimits a block. The number necessary is 
+configurable in AsciiDoc, I may make it configurable here ate come time in 
+the future, but it is not at this time. The problem is that a line of dashes 
+can also indicate a first level section header. To distinguish this this use
+A line of dashes will not be considered to start a block if it is within plus 
+or minus three characters as long as the line that precedes it.
+
+-------------------------------------------------------
+<<<<collect all the chunks from the document>>>>=
+<<<<support for collecting the chunks>>>>
+
+def extract_chunks(ins, outs):
+    """
+    The input parameter is an open stream from which the document is read.
+
+    Returns a dictionary of chunks each made up of a list of the lines of 
+    text in the chunk. 
+    """
+
+    <<<<define regex's needed for extraction>>>>
+
+    <<<<main loop>>>>
+
+    return chunks
+---------------------------------------------------------
+
+A block of text is delimited by a line of at least four dashes 
+starting in the first column, followed by nothing but white space.
+
+---------------------------------------------------------
+<<<<define regex's needed for extraction>>>>=
+block_delimiter = re.compile('^(-{4,})\s*$') 
+------------------------------------------------------------------
+
+The start of a Chunk definition must start at the first column.
+
+-------------------------------------------------------------------------
+<<<<define regex's needed for extraction>>>>+=
+start_chunk_definition = re.compile('^' + tag_start_pattern + 
+                                    '(?P<name>[^<>]+)' + 
+                                    tag_end_pattern + 
+                                    '(?P<mod>\+?)=(?P<value>.*)')
+------------------------------------------------------------------
+
+The main reading loop
+
+-----------------------------------------------------------
+<<<<main loop>>>>=
+preceding_line_length = 0
+cur_chunk_name = ""
+cur_chunk_value = []
+chunks = {}
+mod = ''
+
+in_code_block = False
+
+while True:
+    line = ins.readline()
+    logger.debug("processing line %s", line)
+    if not line: break
+
+    m = block_delimiter.match(line)
+
+    if in_code_block:
+        if m:
+            logger.debug("Leaving code block")
+            in_code_block = False
+            if cur_chunk_name != "":
+                add_chunk(chunks, cur_chunk_name, cur_chunk_value, mod)
+
+            cur_chunk_name = ''
+            cur_chunk_value = []
+            mod = ''
+		
+	else:
+	    # in a code block
+	    c = start_chunk_definition.match(line)
+	    if c: # starting a new chunk
+	        logger.debug('starting ney chunk named "%s"', 
+			    c.group('name'))
+	        if cur_chunk_name != "":
+                    add_chunk(chunks, cur_chunk_name, cur_chunk_value, mod)
+	            cur_chunk_name = ''
+		    cur_chunk_value = []
+		    mod = ''
+
+
+                cur_chunk_name = c.group('name')
+                cur_chunk_value.append(c.group('value').rstrip())
+                mod = c.group('mod')
+	    else:
+	        cur_chunk_value.append(line.rstrip())
+
+    elif m and ((preceding_line_length == 0) 
+           or (abs(len(m.group(1)) - preceding_line_length) > 4)):
+
+        logger.debug("entering code block")
+        in_code_block = True
+        cur_chunk_name = ''
+        cur_chunk_value = []
+        mod = ''
+
+    preceding_line_length = len(line.rstrip())
+-----------------------------------------------------------
+
+A couple of support functions are needed to assemble the chunks.
+
+--------------------------------------------------
+<<<<support for collecting the chunks>>>>=
+def index_of_last(seq, f):
+    """Return the index of the last item in seq where f(item) == True."""
+    return next((i for i in xrange(len(seq)-1,-1,-1) if f(seq[i])), None)
+
+def add_chunk(chunks, name, value, mod):
+	"""
+	adds a chunk to the collection of chunks
+
+	Trims trailing blank lines before storing.
+	"""
+
+	# Get index of last non empty line
+        i = index_of_last(value, (lambda x: x.strip() != '') )
+
+	v = value[:i+1]
+
+        logger.debug(
+	   "Adding chunk named %(name)s " +
+	   "with value of '%(value)s' to collection in mod %(mod)s", 
+	   {'name':name, 'value':v, 'mod':mod})
+	if mod == '+':
+            chunks[name] = chunks[name] + v
+        else:	    
+            chunks[name] = v
+-----------------------------------------------------------
+
+Assemble The Files
+^^^^^^^^^^^^^^^^^^
+
+One we have all them chunks we assemble them into the output files.
+
+---------------------------------------------------------
+<<<<assemble the output files>>>>=
+def assemble_chunk(chunks, chunk_name, indent_level):
+    """
+    returns a string made of all the lines of the named chunk.
+
+    It starts with the beginning of the first line of the chunk(nothing is 
+    prepended)
+    
+    Before each successive line a new line and indent_level spaces are inserted.
+    """
+    logger.debug("entering assemble_chunk")
+    logger.debug("Keys in chunks = '%s'", "".join(chunks.keys()))
+    logger.debug("name = '%s'", chunk_name)
+    logger.debug("indent = %d", indent_level)
+    logger.debug(
+	   "Assembling chunk named %(name)s " +
+	   "with value of '%(value)s' to collection", 
+	    {'name':chunk_name, 
+	     'value':chunks[chunk_name]})
+
+    s = ''
+    tag_pattern = re.compile(tag_start_pattern + '(.+?)' + tag_end_pattern)
+    for c in chunks[chunk_name]:
+	logger.debug('adding "%s" to "%s"', c, s)
+	ce = c.rstrip().expandtabs(tab_stop)
+	padding = len(ce) - len(ce.lstrip())
+
+	logger.debug('new padding = %d', padding)
+
+        tags = tag_pattern.findall(ce)
+
+	for t in tags:
+            p = '^(.*)' + tag_start_pattern  + t + tag_end_pattern + '(.*)$'
+
+	    expansion = assemble_chunk(chunks, t, (indent_level + padding))
+	    logger.debug("chunk expanded to '%s'", expansion)
+
+            # re.sub can not be used because every '\n' 
+	    # would be translated into a new line.
+	    # ce = re.sub(p, expansion, ce)
+
+	    m = re.match(p, ce)
+	    ce = m.group(1) + expansion + m.group(2)
+
+	if s == '':
+	    s = ce
+        else:
+	    s = s + "\n" + ''.ljust(indent_level) + ce
+
+    logger.debug("assemble_chunk is returning '%s'", s)
+    return s
+
+
+def write_files(chunks):
+    """
+    Creates the output files by assembling the chunks
+
+    The contents of the chunked named '*' will be written to stdout.
+    """
+    logger.debug('writing files')
+
+    # import re
+    r = re.compile('\*.+\*')
+
+
+    # [s[1:-1] for s in l if (s[:1] == s[-1:] == '*')]
+    for n in [x for x in chunks.keys() 
+		    if x.startswith("*") and x.endswith("*")]:
+
+            logger.debug('Writing %s', n)
+
+            # open the file for writing text
+	    c = assemble_chunk(chunks, n, 0)
+
+	    logger.debug("writing '%s' to %s", c , n[1:-1]) 
+
+	    if n[1 : -1] == '':
+                f = sys.stdout
+	    else:
+	        f = open(n[1 : -1], 'wt')
+	    f.write(c)
+            f.close()
+--------------------------------------------------------------------
+
+The Main Entry Point
+~~~~~~~~~~~~~~~~~~~~
+
+The main function ties it all together. It does all the setup and breakdown 
+needed. It makes sure the logger is setup, the command line options are 
+collected, and the input stream is open, and closes it when finished.
+
+------------------------------------------------------
+<<<<main function>>>>=
+def main():
+    """
+    main entry point. 
+
+    Makes sure the input and output streams are open.
+
+    Calls the procedure to process the file.
+
+    Closes the files if necessary.
+    """
+    import sys  # needed for stdin
+
+    setup_logging()
+
+    options = get_options()
+
+    if options.rfilename == "":
+        i = sys.stdin
+	logger.info("Reading form console")
+    else:
+        i=open(options.rfilename, "rt")
+	logger.info("reading from %s", options.rfilename)
+
+
+    chunks = extract_chunks(i, sys.stdout)
+
+    logger.debug("***** All Cunks Extracted *****")
+    logger.debug("Extracted chunks = %s", chunks)
+
+    # close the files, if we opened them
+    if i != sys.stdin:
+        i.close()
+
+    global tab_stop 
+    tab_stop = options.tab_stop
+    write_files(chunks)
+-------------------------------------------------------------
+
+The Supporting Cast
+~~~~~~~~~~~~~~~~~~~
+
+The logging and re modules ore used through out the program.
+
+----------------------------------------
+<<<<imports>>>>=
+import re
+import logging
+---------------------------------------
+
+There are support functions to set up the logger and get the command line 
+options.
+
+-------------------------------------------------
+<<<<support functions>>>>=
+<<<<set up logging>>>>
+<<<<configure command line options>>>>
+----------------------------------------------
+
+Command Line Options
+^^^^^^^^^^^^^^^^^^^^
+
+It uses the standard OptionParser.
+
+--------------------------------------------
+<<<<configure command line options>>>>=
+def get_options():
+    """
+    gets options from the command line and environment.
+    """
+    from optparse import OptionParser
+
+    logger.debug('getting options')
+	
+    usage = "usage: %prog [options] [input file]" + \
+	    "if no file is given input is read from stdin."
+
+    version="%prog " + __version__ + " - " + __date__
+    parser = OptionParser(usage=usage, version=version)
+
+    <<<<add options>>>>
+    
+    (options, args) = parser.parse_args()
+
+    <<<<process the logging option>>>>
+
+    <<<<process the arguments>>>>
+ 
+    logger.debug('done reading options %s', options)
+      
+    return options
+---------------------------------------------------------
+
+You can set the logging level from the command line.
+
+-----------------------------------------------------
+<<<<add options>>>>=
+parser.add_option("-l", "--logging", dest="log_level", default= -1,
+        help= "logging level, CRITICAL, ERROR, WARNING, INFO, or DEBUG")
+------------------------------------------------------
+
+The logging option requires some setup.
+
+-------------------------------------------
+<<<<process the logging option>>>>=
+if options.log_level in ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG") :
+
+    ll = {"CRITICAL"	: logging.CRITICAL,
+          "ERROR"	: logging.ERROR,
+	  "WARNING"	: logging.WARNING,
+	  "INFO"	: logging.INFO,
+	  "DEBUG"	: logging.DEBUG}
+
+    logger.setLevel(ll[options.log_level])
+
+elif options.log_level != -1:
+    logger.warning("Logging Level set to illegal value '%s'", 
+		options.log_level)
+------------------------------------------------------------
+
+The size of tabs used in tab expansion can also be set on the command line.
+
+---------------------------------------------------------
+<<<<add options>>>>+=
+parser.add_option("-t", "--tabs", dest="tab_stop", default= 8,
+        help= "set tab stops for tab expansion")
+--------------------------------------------------
+
+Process the arguments to get the input document name.
+
+------------------------------
+<<<<process the arguments>>>>=
+if len(args) == 1:
+    options.rfilename = args[0]
+elif len(args) == 0:
+    options.rfilename = ""
+else :
+    options.rfilename = args[0]
+    logger.warning("Wrong number of argumants")
+-----------------------------
+
+Logging
+^^^^^^^
+
+The logging set up is straight forward.
+
+---------------------------------------
+<<<<set up logging>>>>=
+_logging_level = logging.INFO # should be logging.INFO for released code
+
+def setup_logging():
+    """
+    Sets up the logger
+    """
+    import ConfigParser # change this to configparser for Python 3
+    import logging.config
+    global logger
+
+    try:
+    	logging.config.fileConfig("apllog.conf")
+    except ConfigParser.NoSectionError: 
+	# if there is no configuration file setup a default configuration
+        logging.basicConfig(filename='asciilitprog.log',level= _logging_level,
+			format='%(asctime)s %(levelname)s - %(message)s',
+			datefmt='%Y %b %d, %a %H:%M:%S'
+			)
+    
+    logger = logging.getLogger('%s' % __name__)
+
+    logger.debug('logger ready')
+---------------------------------------------------
+
+
