@@ -191,31 +191,13 @@ while True:
 
     if in_code_block:
         if m:
-            logger.debug("Leaving code block")
-            in_code_block = False
-            if cur_chunk_name != "":
-                add_chunk(chunks, cur_chunk_name, cur_chunk_value, mod)
-
-            cur_chunk_name = ''
-            cur_chunk_value = []
-            mod = ''
+            <<<<processing and of code block>>>>
 		
 	else:
 	    # in a code block
 	    c = start_chunk_definition.match(line)
 	    if c: # starting a new chunk
-	        logger.debug('starting ney chunk named "%s"', 
-			    c.group('name'))
-	        if cur_chunk_name != "":
-                    add_chunk(chunks, cur_chunk_name, cur_chunk_value, mod)
-	            cur_chunk_name = ''
-		    cur_chunk_value = []
-		    mod = ''
-
-
-                cur_chunk_name = c.group('name')
-                cur_chunk_value.append(c.group('value').rstrip())
-                mod = c.group('mod')
+                <<<<processing start of new chunk>>>>
 	    else:
 	        cur_chunk_value.append(line.rstrip())
 
@@ -230,6 +212,37 @@ while True:
 
     preceding_line_length = len(line.rstrip())
 -----------------------------------------------------------
+
+Before processing the new chunk the current chunk needs to be saved.
+
+----------------------------------------------------------
+<<<<processing start of new chunk>>>>=
+logger.debug('starting ney chunk named "%s"', c.group('name'))
+if cur_chunk_name != "":
+    add_chunk(chunks, cur_chunk_name, cur_chunk_value, mod)
+    cur_chunk_name = ''
+    cur_chunk_value = []
+    mod = ''
+
+cur_chunk_name = c.group('name')
+cur_chunk_value.append(c.group('value').rstrip())
+mod = c.group('mod')
+---------------------------------------------------------------
+
+At the end of a code block we store the chunk being processed.
+
+------------------------------------------------------------
+<<<<processing and of code block>>>>=
+logger.debug("Leaving code block")
+in_code_block = False
+if cur_chunk_name != "":
+    add_chunk(chunks, cur_chunk_name, cur_chunk_value, mod)
+
+cur_chunk_name = ''
+cur_chunk_value = []
+mod = ''
+-------------------------------------------------------------------
+
 
 A couple of support functions are needed to assemble the chunks.
 
