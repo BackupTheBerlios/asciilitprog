@@ -127,10 +127,10 @@ First all the chunks are collected from the document.
 The first thing that most be done is to find the start of a block that is 
 allowed to contain chunk definitions. By default a line consisting only of 
 four or more dashes delimits a block. The number necessary is 
-configurable in AsciiDoc, I may make it configurable here ate come time in 
+configurable in AsciiDoc, I may make it configurable here at some time in 
 the future, but it is not at this time. The problem is that a line of dashes 
-can also indicate a first level section header. To distinguish this this use
-A line of dashes will not be considered to start a block if it is within plus 
+can also indicate a first level section header. To distinguish this 
+a line of dashes will not be considered to start a block if it is within plus 
 or minus three characters as long as the line that precedes it.
 
 -------------------------------------------------------
@@ -414,7 +414,7 @@ def main():
 The Supporting Cast
 ~~~~~~~~~~~~~~~~~~~
 
-The logging and re modules ore used through out the program.
+The logging and re modules or used through out the program.
 
 ----------------------------------------
 <<<<imports>>>>=
