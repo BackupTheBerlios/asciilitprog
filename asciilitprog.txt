@@ -2,6 +2,7 @@ AsciiLitProg : A Literate Programming Tool
 ==========================================
 Ed Keith <edk@users.berlios.de>
 v1.0.0, Dec 2009
+http://developer.berlios.de/projects/asciilitprog/
 ////////////////////////////////////////////////////
 Version control info.
 $checked in by:$
